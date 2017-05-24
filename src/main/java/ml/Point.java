@@ -21,4 +21,23 @@ public class Point implements Serializable {
         return Math.sqrt((x-another.x)*(x-another.x) + (y-another.y)*(y-another.y) + (z-another.z)*(z-another.z));
     }
 
+    public Point add(Point another) {
+        x += another.x;
+        y += another.y;
+        z += another.z;
+        return this;
+    }
+
+    public Point div(long val) {
+        x /= val;
+        y /= val;
+        z /= val;
+        return this;
+    }
+
+    @Override
+    public String toString() {
+        return x + " " + y + " " + z;
+    }
+
 }

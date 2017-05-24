@@ -17,4 +17,9 @@ public class Centroid extends Point{
         super(p.x, p.y, p.z);
         this.id = id;
     }
+
+    @Override
+    public String toString() {
+        return id + " " + super.toString();
+    }
 }
