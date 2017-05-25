@@ -15,6 +15,8 @@ import org.apache.flink.configuration.Configuration;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created by JIANG on 2017/5/24.
@@ -60,6 +62,7 @@ public class TaskTwo {
         // (SCA1, CD11b, Ly6C) -> 00110001000000
         // final -> 11100110001000000
         ArrayList<String> default_dimensions = new ArrayList<>();
+        ArrayList<String> dimensions = new ArrayList<>();
         default_dimensions.add("SCA1");
         default_dimensions.add("CD11b");
         default_dimensions.add("Ly6C");
@@ -74,11 +77,6 @@ public class TaskTwo {
             }
         }
 
-        System.out.println("####################################################");
-        System.out.println("####################################################");
-        System.out.println("####################################################");
-        System.out.println("####################################################");
-        System.out.println("####################################################");
         System.err.println("The 111 plus input_field_string_default is: 111 plus " + input_field_string_default);
         System.out.println("####################################################");
         System.out.println("####################################################");
@@ -86,8 +84,13 @@ public class TaskTwo {
         System.out.println("####################################################");
         System.out.println("####################################################");
 
+        // Handle the user define dimension order
+        Map<Integer, String> dimension_order_user_map = new HashMap<>();
+        Map<String, Integer> dimension_order_actual_map = new HashMap<>();
+        Map<Integer, Integer> final_order_map = new HashMap<>();
+        ArrayList<String> dimension_actual_order = new ArrayList<>();
+
         // Get the field name that will be used as the dimension
-        // TODO: make the order of the dimension_name user defined
         if(params.has("dimension_name")){
             String dimension_name = params.getRequired("dimension_name");
             String[] dimension_name_array = dimension_name.split(",");
@@ -98,23 +101,24 @@ public class TaskTwo {
                 String dimension_one = dimension_name_array[0];
                 String dimension_two = dimension_name_array[1];
                 String dimension_three = dimension_name_array[2];
-                ArrayList<String> dimensions = new ArrayList<>();
+
+                dimension_order_user_map.put(1, dimension_one);
+                dimension_order_user_map.put(2, dimension_two);
+                dimension_order_user_map.put(3, dimension_three);
+
+                dimensions = new ArrayList<>();
                 dimensions.add(dimension_one);
                 dimensions.add(dimension_two);
                 dimensions.add(dimension_three);
                 for(String header : measurement_header_array){
                     if(dimensions.contains(header)){
                         input_field_string = input_field_string + "1";
+                        dimension_actual_order.add(header);
                     }else{
                         input_field_string = input_field_string + "0";
                     }
                 }
                 input_field_string = "111" + input_field_string;
-                System.out.println("####################################################");
-                System.out.println("####################################################");
-                System.out.println("####################################################");
-                System.out.println("####################################################");
-                System.out.println("####################################################");
                 System.out.println("The input_field_string is: " + input_field_string);
                 System.out.println("####################################################");
                 System.out.println("####################################################");
@@ -123,11 +127,6 @@ public class TaskTwo {
                 System.out.println("####################################################");
             }else{
                 input_field_string = "111" + input_field_string_default;
-                System.out.println("####################################################");
-                System.out.println("####################################################");
-                System.out.println("####################################################");
-                System.out.println("####################################################");
-                System.out.println("####################################################");
                 System.err.println("The number of dimensions is not three, default dimensions are used");
                 System.out.println("####################################################");
                 System.out.println("####################################################");
@@ -137,11 +136,6 @@ public class TaskTwo {
             }
         }else{
             input_field_string = "111" + input_field_string_default;
-            System.out.println("####################################################");
-            System.out.println("####################################################");
-            System.out.println("####################################################");
-            System.out.println("####################################################");
-            System.out.println("####################################################");
             System.err.println("The user did not give the three dimensions, default dimensions are used");
             System.out.println("####################################################");
             System.out.println("####################################################");
@@ -149,6 +143,20 @@ public class TaskTwo {
             System.out.println("####################################################");
             System.out.println("####################################################");
         }
+
+        // Have the field number for each header with the actual order
+        for(int i=0; i<dimension_actual_order.size();i++){
+            String header = dimension_actual_order.get(i);
+            dimension_order_actual_map.put(header, i+3);
+        }
+
+        // Link the actual order to the user define order
+        for(int i =1; i<=dimension_order_user_map.size(); i++){
+            String header = dimension_order_user_map.get(i);
+            int field_num = dimension_order_actual_map.get(header);
+            final_order_map.put(i, field_num);
+        }
+
 
         // Which directory are we receiving input from?
         // This can be local or on HDFS; just format the path correctly for your OS.
@@ -168,7 +176,6 @@ public class TaskTwo {
 
         // Filter out the correct measurement, output:
         // (sample, FSC-A, SSC-A, SCA1, CD11b, Ly6C)
-        // TODO: If i need to change "Ly6C, CD11b, and SCA1" to something else
         DataSet<Tuple6<String,Integer,Integer,Double,Double,Double>> measurementsHandled =
                 measurementsRaw
                         .filter(tuple -> {
@@ -185,7 +192,10 @@ public class TaskTwo {
                 measurementsHandled
                         .map(tuple -> {
                             Point measurement;
-                            measurement = new Point(tuple.f3,tuple.f4,tuple.f5);
+                            int field_num_one = final_order_map.get(1);
+                            int field_num_two = final_order_map.get(2);
+                            int field_num_three = final_order_map.get(3);
+                            measurement = new Point(tuple.getField(field_num_one),tuple.getField(field_num_two),tuple.getField(field_num_three));
                             return measurement;
                         });
 
