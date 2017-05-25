@@ -75,33 +75,35 @@ public class TaskTwo {
 
         DataSet<Centroid> intermediate_centroids = measurementsPoint
                 // compute the closest centroid for each point
-                .map(new RichMapFunction<Point, Tuple2<Integer, Point>>(){
-                    private Collection<Centroid> centroids;
-
-                    @Override
-                    public void open(Configuration parameters) throws Exception {
-                        this.centroids = getRuntimeContext().getBroadcastVariable("newest_centroids");
-                    }
-
-                    @Override
-                    public Tuple2<Integer, Point> map(Point p) throws Exception{
-                        double minDistance = Double.MAX_VALUE;
-                        int closestCentroidId = -1;
-                        // check all cluster centers
-                        for (Centroid centroid : centroids) {
-                            // compute distance
-                            double distance = p.calculate_euclidean_distance(centroid);
-
-                            // update nearest cluster if necessary
-                            if (distance < minDistance) {
-                                minDistance = distance;
-                                closestCentroidId = centroid.id;
-                            }
-                        }
-                        Tuple2<Integer, Point> temp =new Tuple2<>(closestCentroidId, p);
-                        return temp;
-                    }
-                })
+                .map(new SelectNearestCenter()
+//                        new RichMapFunction<Point, Tuple2<Integer, Point>>(){
+//                    private Collection<Centroid> centroids;
+//
+//                    @Override
+//                    public void open(Configuration parameters) throws Exception {
+//                        this.centroids = getRuntimeContext().getBroadcastVariable("newest_centroids");
+//                    }
+//
+//                    @Override
+//                    public Tuple2<Integer, Point> map(Point p) throws Exception{
+//                        double minDistance = Double.MAX_VALUE;
+//                        int closestCentroidId = -1;
+//                        // check all cluster centers
+//                        for (Centroid centroid : centroids) {
+//                            // compute distance
+//                            double distance = p.calculate_euclidean_distance(centroid);
+//
+//                            // update nearest cluster if necessary
+//                            if (distance < minDistance) {
+//                                minDistance = distance;
+//                                closestCentroidId = centroid.id;
+//                            }
+//                        }
+//                        Tuple2<Integer, Point> temp =new Tuple2<>(closestCentroidId, p);
+//                        return temp;
+//                    }
+//                }
+                )
                 .withBroadcastSet(loop, "newest_centroids")
                 // count and sum point coordinates for each centroid
                 .map(tuple -> new Tuple3<Integer, Point, Long>(tuple.f0, tuple.f1, 1L))
@@ -132,6 +134,8 @@ public class TaskTwo {
             System.err.println("No output location specified; printing first 100.");
             final_centroids.print();
         }
+    }
+}
 
         /*
         * readTextFile version
@@ -168,6 +172,3 @@ public class TaskTwo {
 
 
     }*/
-
-    }
-}
