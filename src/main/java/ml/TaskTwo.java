@@ -25,6 +25,35 @@ public class TaskTwo {
         // TODO: Make the number of iterations can be changed
         final int default_num_iters = 10;
 
+        int num_iters = 0;
+        if(params.has("num_iters")){
+            num_iters = Integer.parseInt(params.getRequired("num_iters"));
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("The number of iterations is set as: " + num_iters);
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+        }else{
+            num_iters = default_num_iters;
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.err.println("No num_iters found, The number of iterations is set as default: " + num_iters);
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+        }
+
         // Which directory are we receiving input from?
         // This can be local or on HDFS; just format the path correctly for your OS.
         String measurementsDir = params.getRequired("measurements-dir");
@@ -32,10 +61,9 @@ public class TaskTwo {
             measurementsDir = measurementsDir + '/';
         }
 
-        // Read in the ratings file.
-        // Now this only works for /share/cytometry/small, output
+        // Read in the measurements file.
+        // All the files under the folder will be read
         // (sample, FSC-A, SSC-A, SCA1, CD11b, Ly6C)
-        // TODO: Read muliple files
         DataSet<Tuple6<String,Integer,Integer,Double,Double,Double>> measurementsRaw = env.readCsvFile(measurementsDir)
                                                                                             // .ignoreFirstLine()
                                                                                             .ignoreInvalidLines()
@@ -71,7 +99,7 @@ public class TaskTwo {
         Centroid centroid_c = new Centroid(3, 2.5, 2.5, 2.5);
         DataSet<Centroid> centroids_default = env.fromElements(centroid_a, centroid_b, centroid_c);
 
-        IterativeDataSet<Centroid> loop = centroids_default.iterate(default_num_iters);
+        IterativeDataSet<Centroid> loop = centroids_default.iterate(num_iters);
 
         DataSet<Centroid> intermediate_centroids = measurementsPoint
                 // compute the closest centroid for each point
@@ -108,7 +136,17 @@ public class TaskTwo {
             // Always limit direct printing
             // as it requires pooling all resources into the driver.
             System.err.println("No output location specified; printing first 100.");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
             output_data.first(100).print();
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
         }
     }
 }
@@ -119,7 +157,6 @@ public class TaskTwo {
 
         // Filter out the correct measurement, output:
         // (sample, FSC-A, SSC-A, Ly6C, CD11b, and SCA1)
-        // TODO: If i need to change "Ly6C, CD11b, and SCA1" to something else
         DataSet<Tuple6<String,String,String,String,String,String>> measurementsHandled =
                 measurementsRaw
                         .map(line -> {
