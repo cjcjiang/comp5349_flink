@@ -8,7 +8,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
@@ -36,7 +36,7 @@ public class TaskTwo {
         // Now this only works for /share/cytometry/small, output
         // (sample, FSC-A, SSC-A, SCA1, CD11b, Ly6C)
         // TODO: Read muliple files
-        DataSet<Tuple6<String,Integer,Integer,Double,Double,Double>> measurementsRaw = env.readCsvFile(measurementsDir + "measurements_arcsin200_p1.csv")
+        DataSet<Tuple6<String,Integer,Integer,Double,Double,Double>> measurementsRaw = env.readCsvFile(measurementsDir)
                                                                                             // .ignoreFirstLine()
                                                                                             .ignoreInvalidLines()
                                                                                             .includeFields("11100110001000000")
@@ -75,35 +75,7 @@ public class TaskTwo {
 
         DataSet<Centroid> intermediate_centroids = measurementsPoint
                 // compute the closest centroid for each point
-                .map(new SelectNearestCenter()
-//                        new RichMapFunction<Point, Tuple2<Integer, Point>>(){
-//                    private Collection<Centroid> centroids;
-//
-//                    @Override
-//                    public void open(Configuration parameters) throws Exception {
-//                        this.centroids = getRuntimeContext().getBroadcastVariable("newest_centroids");
-//                    }
-//
-//                    @Override
-//                    public Tuple2<Integer, Point> map(Point p) throws Exception{
-//                        double minDistance = Double.MAX_VALUE;
-//                        int closestCentroidId = -1;
-//                        // check all cluster centers
-//                        for (Centroid centroid : centroids) {
-//                            // compute distance
-//                            double distance = p.calculate_euclidean_distance(centroid);
-//
-//                            // update nearest cluster if necessary
-//                            if (distance < minDistance) {
-//                                minDistance = distance;
-//                                closestCentroidId = centroid.id;
-//                            }
-//                        }
-//                        Tuple2<Integer, Point> temp =new Tuple2<>(closestCentroidId, p);
-//                        return temp;
-//                    }
-//                }
-                )
+                .map(new SelectNearestCenter())
                 .withBroadcastSet(loop, "newest_centroids")
                 // count and sum point coordinates for each centroid
                 .map(tuple -> new Tuple3<Integer, Point, Long>(tuple.f0, tuple.f1, 1L))
@@ -116,23 +88,27 @@ public class TaskTwo {
                 })
                 // compute new centroids from point counts and coordinate sums
                 .map(tuple -> {
-                    Centroid centroid_temp = new Centroid(tuple.f0, tuple.f1.div(tuple.f2));
+                    Centroid centroid_temp = new Centroid(tuple.f0, tuple.f1.div(tuple.f2), tuple.f2);
                     return centroid_temp;
                 });
 
-        // feed new centroids back into next iteration
+        // Feed new centroids back into next iteration
         DataSet<Centroid> final_centroids = loop.closeWith(intermediate_centroids);
+
+        // Generate the Dataset to have the output
+        DataSet<Tuple5<Integer, Long, Double, Double, Double>> output_data = final_centroids
+                .map(centroid -> new Tuple5<>(centroid.id, centroid.num_of_points, centroid.x, centroid.y, centroid.z));
+
 
         // End the program by writing the output!
         if(params.has("output")) {
-            final_centroids.writeAsCsv(params.get("output"));
-
+            output_data.writeAsCsv(params.get("output"), "\n","\t" );
             env.execute();
         } else {
             // Always limit direct printing
             // as it requires pooling all resources into the driver.
             System.err.println("No output location specified; printing first 100.");
-            final_centroids.print();
+            output_data.first(100).print();
         }
     }
 }
