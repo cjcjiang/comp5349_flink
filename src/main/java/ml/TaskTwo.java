@@ -7,10 +7,7 @@ import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 
@@ -64,7 +61,7 @@ public class TaskTwo {
         }
 
         // Get the default three dimensions
-        // (SCA1, CD11b, Ly6C) -> 00110001000000
+        // SCA1,CD11b,Ly6C -> 00110001000000
         // final -> 11100110001000000
         ArrayList<String> default_dimensions = new ArrayList<>();
         ArrayList<String> dimensions = new ArrayList<>();
@@ -224,10 +221,35 @@ public class TaskTwo {
                 .and(MIN, 4)
                 .and(MAX, 5);
 
+        // test
+        DataSet<Tuple12<Integer, Double, Double, Double, Integer, Double, Double, Double, Integer, Double, Double, Double>> testData = measurements_points_aggregation.map(new mapTest());
+        DataSet<Centroid> centroids_random_with_id = testData.flatMap((tuple,out) -> {
+            Integer id_1 = tuple.f0;
+            Double x_1 = tuple.f1;
+            Double y_1 = tuple.f2;
+            Double z_1 = tuple.f3;
+            Centroid central_1 = new Centroid(id_1, x_1, y_1, z_1);
+            out.collect(central_1);
+            Integer id_2 = tuple.f4;
+            Double x_2 = tuple.f5;
+            Double y_2 = tuple.f6;
+            Double z_2 = tuple.f7;
+            Centroid central_2 = new Centroid(id_2, x_2, y_2, z_2);
+            out.collect(central_2);
+            Integer id_3 = tuple.f8;
+            Double x_3 = tuple.f9;
+            Double y_3 = tuple.f10;
+            Double z_3 = tuple.f11;
+            Centroid central_3 = new Centroid(id_3, x_3, y_3, z_3);
+            out.collect(central_3);
+            // TODO: try to print the central here
+            // TODO: re design to remove the test
+            // TODO: try to move this to flatMapTest
+        });
+
         // three random centroids and broadcast
         DataSet<Centroid> centroids_random_no_id = measurements_points_aggregation
                                                 .mapPartition((tuples, out) ->{
-                                                    int i = 1;
                                                     for(Tuple6<Double, Double, Double, Double, Double, Double> tuple : tuples){
                                                         Double x_min = tuple.f0;
                                                         Double x_max = tuple.f1;
@@ -238,13 +260,14 @@ public class TaskTwo {
                                                         Double x_random = ThreadLocalRandom.current().nextDouble(x_min, x_max);
                                                         Double y_random = ThreadLocalRandom.current().nextDouble(y_min, y_max);
                                                         Double z_random = ThreadLocalRandom.current().nextDouble(z_min, z_max);
-                                                        Centroid temp = new Centroid(i, x_random, y_random, z_random);
-                                                        i++;
+                                                        Centroid temp = new Centroid(1, x_random, y_random, z_random);
                                                         out.collect(temp);
                                                     }
                                                 });
 
         //DataSet<Centroid> centroids_random_no_id = measurements_points_aggregation.mapPartition(new GeRandomCentro());
+
+        //DataSet<Centroid> centroids_random_with_id = centroids_random_no_id.map(new mapTest()).setParallelism(1);
 
         // TODO: Find three random centroids and broadcast
 //        Centroid centroid_a = new Centroid(1, 0.5, 0.5, 0.5);
@@ -252,7 +275,8 @@ public class TaskTwo {
 //        Centroid centroid_c = new Centroid(3, 2.5, 2.5, 2.5);
 //        DataSet<Centroid> centroids_default = env.fromElements(centroid_a, centroid_b, centroid_c);
 
-        IterativeDataSet<Centroid> loop = centroids_random_no_id.iterate(num_iters);
+        //IterativeDataSet<Centroid> loop = centroids_random_no_id.iterate(num_iters);
+        IterativeDataSet<Centroid> loop = centroids_random_with_id.iterate(num_iters);
 
         DataSet<Centroid> intermediate_centroids = measurementsPoint
                 // compute the closest centroid for each point
