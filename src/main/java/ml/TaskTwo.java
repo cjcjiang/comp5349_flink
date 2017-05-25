@@ -13,6 +13,7 @@ import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 
+import java.util.ArrayList;
 import java.util.Collection;
 
 /**
@@ -22,10 +23,11 @@ public class TaskTwo {
     public static void main(String[] args) throws Exception {
         final ParameterTool params = ParameterTool.fromArgs(args);
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        // TODO: Make the number of iterations can be changed
         final int default_num_iters = 10;
+        final String measurement_header= "CD48,Ly6G,CD117,SCA1,CD11b,CD150,CD11c,B220,Ly6C,CD115,CD135,CD3/CD19/NK11,CD16/CD32,CD45";
 
         int num_iters = 0;
+        // Get the number of the iterations
         if(params.has("num_iters")){
             num_iters = Integer.parseInt(params.getRequired("num_iters"));
             System.out.println("####################################################");
@@ -54,6 +56,100 @@ public class TaskTwo {
             System.out.println("####################################################");
         }
 
+        // Get the default three dimensions
+        // (SCA1, CD11b, Ly6C) -> 00110001000000
+        // final -> 11100110001000000
+        ArrayList<String> default_dimensions = new ArrayList<>();
+        default_dimensions.add("SCA1");
+        default_dimensions.add("CD11b");
+        default_dimensions.add("Ly6C");
+        String[] measurement_header_array = measurement_header.split(",");
+        String input_field_string = "";
+        String input_field_string_default = "";
+        for(String header : measurement_header_array){
+            if(default_dimensions.contains(header)){
+                input_field_string_default = input_field_string_default + "1";
+            }else{
+                input_field_string_default = input_field_string_default + "0";
+            }
+        }
+
+        System.out.println("####################################################");
+        System.out.println("####################################################");
+        System.out.println("####################################################");
+        System.out.println("####################################################");
+        System.out.println("####################################################");
+        System.err.println("The 111 plus input_field_string_default is: 111 plus " + input_field_string_default);
+        System.out.println("####################################################");
+        System.out.println("####################################################");
+        System.out.println("####################################################");
+        System.out.println("####################################################");
+        System.out.println("####################################################");
+
+        // Get the field name that will be used as the dimension
+        // TODO: make the order of the dimension_name user defined
+        if(params.has("dimension_name")){
+            String dimension_name = params.getRequired("dimension_name");
+            String[] dimension_name_array = dimension_name.split(",");
+            int dimension_name_array_leng = dimension_name_array.length;
+            // By now, only three dimensions can be handled
+            // TODO: Have k dimensions to compute
+            if(dimension_name_array_leng == 3){
+                String dimension_one = dimension_name_array[0];
+                String dimension_two = dimension_name_array[1];
+                String dimension_three = dimension_name_array[2];
+                ArrayList<String> dimensions = new ArrayList<>();
+                dimensions.add(dimension_one);
+                dimensions.add(dimension_two);
+                dimensions.add(dimension_three);
+                for(String header : measurement_header_array){
+                    if(dimensions.contains(header)){
+                        input_field_string = input_field_string + "1";
+                    }else{
+                        input_field_string = input_field_string + "0";
+                    }
+                }
+                input_field_string = "111" + input_field_string;
+                System.out.println("####################################################");
+                System.out.println("####################################################");
+                System.out.println("####################################################");
+                System.out.println("####################################################");
+                System.out.println("####################################################");
+                System.out.println("The input_field_string is: " + input_field_string);
+                System.out.println("####################################################");
+                System.out.println("####################################################");
+                System.out.println("####################################################");
+                System.out.println("####################################################");
+                System.out.println("####################################################");
+            }else{
+                input_field_string = "111" + input_field_string_default;
+                System.out.println("####################################################");
+                System.out.println("####################################################");
+                System.out.println("####################################################");
+                System.out.println("####################################################");
+                System.out.println("####################################################");
+                System.err.println("The number of dimensions is not three, default dimensions are used");
+                System.out.println("####################################################");
+                System.out.println("####################################################");
+                System.out.println("####################################################");
+                System.out.println("####################################################");
+                System.out.println("####################################################");
+            }
+        }else{
+            input_field_string = "111" + input_field_string_default;
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.err.println("The user did not give the three dimensions, default dimensions are used");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+        }
+
         // Which directory are we receiving input from?
         // This can be local or on HDFS; just format the path correctly for your OS.
         String measurementsDir = params.getRequired("measurements-dir");
@@ -67,7 +163,7 @@ public class TaskTwo {
         DataSet<Tuple6<String,Integer,Integer,Double,Double,Double>> measurementsRaw = env.readCsvFile(measurementsDir)
                                                                                             // .ignoreFirstLine()
                                                                                             .ignoreInvalidLines()
-                                                                                            .includeFields("11100110001000000")
+                                                                                            .includeFields(input_field_string)
                                                                                             .types(String.class, Integer.class,Integer.class, Double.class, Double.class, Double.class);
 
         // Filter out the correct measurement, output:
@@ -124,6 +220,7 @@ public class TaskTwo {
         DataSet<Centroid> final_centroids = loop.closeWith(intermediate_centroids);
 
         // Generate the Dataset to have the output
+        // TODO: If i need to sort the output_data
         DataSet<Tuple5<Integer, Long, Double, Double, Double>> output_data = final_centroids
                 .map(centroid -> new Tuple5<>(centroid.id, centroid.num_of_points, centroid.x, centroid.y, centroid.z));
 
