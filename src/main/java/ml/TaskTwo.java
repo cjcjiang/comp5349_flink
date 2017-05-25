@@ -1,5 +1,6 @@
 package ml;
 
+import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.operators.Order;
@@ -17,6 +18,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
+
+import static org.apache.flink.api.java.aggregation.Aggregations.MAX;
+import static org.apache.flink.api.java.aggregation.Aggregations.MIN;
 
 /**
  * Created by JIANG on 2017/5/24.
@@ -192,6 +197,7 @@ public class TaskTwo {
                 measurementsHandled
                         .map(tuple -> {
                             Point measurement;
+                            // TODO: In default mode, final_order_map will have null pointer exception
                             int field_num_one = final_order_map.get(1);
                             int field_num_two = final_order_map.get(2);
                             int field_num_three = final_order_map.get(3);
@@ -199,13 +205,54 @@ public class TaskTwo {
                             return measurement;
                         });
 
-        // TODO: Find three random centroids and broadcast
-        Centroid centroid_a = new Centroid(1, 0.5, 0.5, 0.5);
-        Centroid centroid_b = new Centroid(2, 1.5, 1.5, 1.5);
-        Centroid centroid_c = new Centroid(3, 2.5, 2.5, 2.5);
-        DataSet<Centroid> centroids_default = env.fromElements(centroid_a, centroid_b, centroid_c);
+        // Calculate the max and min value
+        DataSet<Tuple6<Double, Double, Double, Double, Double, Double>> agre_prep = measurementsPoint
+                .flatMap((point, out) -> {
+                    Double x = point.x;
+                    Double y = point.y;
+                    Double z = point.z;
+                    Tuple6<Double, Double, Double, Double, Double, Double> temp = new Tuple6<>(x, x, y, y, z, z);
+                    out.collect(temp);
+                });
 
-        IterativeDataSet<Centroid> loop = centroids_default.iterate(num_iters);
+
+        DataSet<Tuple6<Double, Double, Double, Double, Double, Double>> measurements_points_aggregation = agre_prep
+                .aggregate(MIN, 0)
+                .and(MAX, 1)
+                .and(MIN, 2)
+                .and(MAX, 3)
+                .and(MIN, 4)
+                .and(MAX, 5);
+
+        // three random centroids and broadcast
+        DataSet<Centroid> centroids_random_no_id = measurements_points_aggregation
+                                                .mapPartition((tuples, out) ->{
+                                                    int i = 1;
+                                                    for(Tuple6<Double, Double, Double, Double, Double, Double> tuple : tuples){
+                                                        Double x_min = tuple.f0;
+                                                        Double x_max = tuple.f1;
+                                                        Double y_min = tuple.f2;
+                                                        Double y_max = tuple.f3;
+                                                        Double z_min = tuple.f4;
+                                                        Double z_max = tuple.f5;
+                                                        Double x_random = ThreadLocalRandom.current().nextDouble(x_min, x_max);
+                                                        Double y_random = ThreadLocalRandom.current().nextDouble(y_min, y_max);
+                                                        Double z_random = ThreadLocalRandom.current().nextDouble(z_min, z_max);
+                                                        Centroid temp = new Centroid(i, x_random, y_random, z_random);
+                                                        i++;
+                                                        out.collect(temp);
+                                                    }
+                                                });
+
+        //DataSet<Centroid> centroids_random_no_id = measurements_points_aggregation.mapPartition(new GeRandomCentro());
+
+        // TODO: Find three random centroids and broadcast
+//        Centroid centroid_a = new Centroid(1, 0.5, 0.5, 0.5);
+//        Centroid centroid_b = new Centroid(2, 1.5, 1.5, 1.5);
+//        Centroid centroid_c = new Centroid(3, 2.5, 2.5, 2.5);
+//        DataSet<Centroid> centroids_default = env.fromElements(centroid_a, centroid_b, centroid_c);
+
+        IterativeDataSet<Centroid> loop = centroids_random_no_id.iterate(num_iters);
 
         DataSet<Centroid> intermediate_centroids = measurementsPoint
                 // compute the closest centroid for each point

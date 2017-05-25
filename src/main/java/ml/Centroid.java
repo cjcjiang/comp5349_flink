@@ -32,6 +32,11 @@ public class Centroid extends Point{
         this.num_of_points = num_of_points;
     }
 
+    public Centroid(int id, Centroid centroid_no_id) {
+        super(centroid_no_id.x, centroid_no_id.y, centroid_no_id.z);
+        this.id = id;
+    }
+
     @Override
     public String toString() {
         return id + " " + super.toString() + " The number of the points in this cluster is: " + num_of_points;
