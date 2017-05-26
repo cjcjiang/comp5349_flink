@@ -9,7 +9,7 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * Created by Yuming on 2017/5/26.
  */
-public class mapTest implements MapFunction<Tuple6<Double, Double, Double, Double, Double, Double>, Tuple12<Integer, Double, Double, Double, Integer, Double, Double, Double, Integer, Double, Double, Double>> {
+public class MapGeNumArray implements MapFunction<Tuple6<Double, Double, Double, Double, Double, Double>, Tuple12<Integer, Double, Double, Double, Integer, Double, Double, Double, Integer, Double, Double, Double>> {
     @Override
     public Tuple12<Integer, Double, Double, Double, Integer, Double, Double, Double, Integer, Double, Double, Double> map(Tuple6<Double, Double, Double, Double, Double, Double> tuple) throws Exception{
         Double x_min = tuple.f0;

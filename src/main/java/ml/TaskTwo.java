@@ -1,18 +1,14 @@
 package ml;
 
-import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.Configuration;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -29,6 +25,8 @@ public class TaskTwo {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         final int default_num_iters = 10;
         final String measurement_header= "CD48,Ly6G,CD117,SCA1,CD11b,CD150,CD11c,B220,Ly6C,CD115,CD135,CD3/CD19/NK11,CD16/CD32,CD45";
+
+        // TODO: Have k clusters
 
         int num_iters = 0;
         // Get the number of the iterations
@@ -98,7 +96,7 @@ public class TaskTwo {
             String[] dimension_name_array = dimension_name.split(",");
             int dimension_name_array_leng = dimension_name_array.length;
             // By now, only three dimensions can be handled
-            // TODO: Have k dimensions to compute
+            // TODO: Have n dimensions to compute
             if(dimension_name_array_leng == 3){
                 String dimension_one = dimension_name_array[0];
                 String dimension_two = dimension_name_array[1];
@@ -170,11 +168,12 @@ public class TaskTwo {
         // Read in the measurements file.
         // All the files under the folder will be read
         // (sample, FSC-A, SSC-A, SCA1, CD11b, Ly6C)
-        DataSet<Tuple6<String,Integer,Integer,Double,Double,Double>> measurementsRaw = env.readCsvFile(measurementsDir)
-                                                                                            // .ignoreFirstLine()
-                                                                                            .ignoreInvalidLines()
-                                                                                            .includeFields(input_field_string)
-                                                                                            .types(String.class, Integer.class,Integer.class, Double.class, Double.class, Double.class);
+        DataSet<Tuple6<String,Integer,Integer,Double,Double,Double>> measurementsRaw =
+                env.readCsvFile(measurementsDir)
+                        // .ignoreFirstLine()
+                        .ignoreInvalidLines()
+                        .includeFields(input_field_string)
+                        .types(String.class, Integer.class,Integer.class, Double.class, Double.class, Double.class);
 
         // Filter out the correct measurement, output:
         // (sample, FSC-A, SSC-A, SCA1, CD11b, Ly6C)
@@ -221,9 +220,8 @@ public class TaskTwo {
                 .and(MIN, 4)
                 .and(MAX, 5);
 
-        // test
-        DataSet<Tuple12<Integer, Double, Double, Double, Integer, Double, Double, Double, Integer, Double, Double, Double>> testData = measurements_points_aggregation.map(new mapTest());
-        DataSet<Centroid> centroids_random_with_id = testData.flatMap((tuple,out) -> {
+        DataSet<Tuple12<Integer, Double, Double, Double, Integer, Double, Double, Double, Integer, Double, Double, Double>> centro_num_array = measurements_points_aggregation.map(new MapGeNumArray());
+        DataSet<Centroid> centroids_random_with_id = centro_num_array.flatMap((tuple,out) -> {
             Integer id_1 = tuple.f0;
             Double x_1 = tuple.f1;
             Double y_1 = tuple.f2;
@@ -242,40 +240,13 @@ public class TaskTwo {
             Double z_3 = tuple.f11;
             Centroid central_3 = new Centroid(id_3, x_3, y_3, z_3);
             out.collect(central_3);
-            // TODO: try to print the central here
-            // TODO: re design to remove the test
-            // TODO: try to move this to flatMapTest
         });
 
-        // three random centroids and broadcast
-        DataSet<Centroid> centroids_random_no_id = measurements_points_aggregation
-                                                .mapPartition((tuples, out) ->{
-                                                    for(Tuple6<Double, Double, Double, Double, Double, Double> tuple : tuples){
-                                                        Double x_min = tuple.f0;
-                                                        Double x_max = tuple.f1;
-                                                        Double y_min = tuple.f2;
-                                                        Double y_max = tuple.f3;
-                                                        Double z_min = tuple.f4;
-                                                        Double z_max = tuple.f5;
-                                                        Double x_random = ThreadLocalRandom.current().nextDouble(x_min, x_max);
-                                                        Double y_random = ThreadLocalRandom.current().nextDouble(y_min, y_max);
-                                                        Double z_random = ThreadLocalRandom.current().nextDouble(z_min, z_max);
-                                                        Centroid temp = new Centroid(1, x_random, y_random, z_random);
-                                                        out.collect(temp);
-                                                    }
-                                                });
-
-        //DataSet<Centroid> centroids_random_no_id = measurements_points_aggregation.mapPartition(new GeRandomCentro());
-
-        //DataSet<Centroid> centroids_random_with_id = centroids_random_no_id.map(new mapTest()).setParallelism(1);
-
-        // TODO: Find three random centroids and broadcast
 //        Centroid centroid_a = new Centroid(1, 0.5, 0.5, 0.5);
 //        Centroid centroid_b = new Centroid(2, 1.5, 1.5, 1.5);
 //        Centroid centroid_c = new Centroid(3, 2.5, 2.5, 2.5);
 //        DataSet<Centroid> centroids_default = env.fromElements(centroid_a, centroid_b, centroid_c);
 
-        //IterativeDataSet<Centroid> loop = centroids_random_no_id.iterate(num_iters);
         IterativeDataSet<Centroid> loop = centroids_random_with_id.iterate(num_iters);
 
         DataSet<Centroid> intermediate_centroids = measurementsPoint
@@ -301,9 +272,9 @@ public class TaskTwo {
         DataSet<Centroid> final_centroids = loop.closeWith(intermediate_centroids);
 
         // Generate the Dataset to have the output
-        // TODO: If i need to sort the output_data
         DataSet<Tuple5<Integer, Long, Double, Double, Double>> output_data = final_centroids
-                .map(centroid -> new Tuple5<>(centroid.id, centroid.num_of_points, centroid.x, centroid.y, centroid.z));
+                .map(centroid -> new Tuple5<>(centroid.id, centroid.num_of_points, centroid.x, centroid.y, centroid.z))
+                .sortPartition(0, Order.ASCENDING).setParallelism(1);
 
 
         // End the program by writing the output!
@@ -328,38 +299,3 @@ public class TaskTwo {
         }
     }
 }
-
-        /*
-        * readTextFile version
-        * DataSet<String> measurementsRaw = env.readTextFile(measurementsDir + "measurements_arcsin200_p1.csv");
-
-        // Filter out the correct measurement, output:
-        // (sample, FSC-A, SSC-A, Ly6C, CD11b, and SCA1)
-        DataSet<Tuple6<String,String,String,String,String,String>> measurementsHandled =
-                measurementsRaw
-                        .map(line -> {
-                            Tuple6<String,String,String,String,String,String> temp_tuple;
-                            String[] temp_string_array = line.split(",");
-                            temp_tuple = new Tuple6<>(temp_string_array[0],temp_string_array[1],temp_string_array[2],temp_string_array[11],temp_string_array[7],temp_string_array[6]);
-                            return temp_tuple;
-                        })
-                        .filter(tuple -> {
-                            if((Integer.parseInt(tuple.f1)>=1) && (Integer.parseInt(tuple.f1)<=150000) && (Integer.parseInt(tuple.f2)>=1) && (Integer.parseInt(tuple.f2)<=150000)){
-                                return true;
-                            }
-                            else{
-                                return false;
-                            }});
-
-        // Pick up the useful information out of the measurements
-        // (Ly6C, CD11b, and SCA1) as (x,y,z)
-        DataSet<Point> measurementsPoint =
-                measurementsHandled
-                        .map(tuple -> {
-                            Point measurement;
-                            measurement = new Point(Double.parseDouble(tuple.f3),Double.parseDouble(tuple.f4),Double.parseDouble(tuple.f5));
-                            return measurement;
-                        });
-
-
-    }*/
