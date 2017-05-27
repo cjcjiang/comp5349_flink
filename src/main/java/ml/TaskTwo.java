@@ -25,6 +25,30 @@ public class TaskTwo {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         final int default_num_iters = 10;
         final String measurement_header= "CD48,Ly6G,CD117,SCA1,CD11b,CD150,CD11c,B220,Ly6C,CD115,CD135,CD3/CD19/NK11,CD16/CD32,CD45";
+        final Integer k_num;
+
+        if(params.has("k_num")){
+            k_num = Integer.parseInt(params.getRequired("k_num"));
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("The number of clusters is set as: " + k_num);
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+        }else{
+            k_num = 3;
+            System.out.println("No k_num found, The number of clusters is set as default:" + k_num);
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+        }
 
         // TODO: Have k clusters
 
@@ -32,11 +56,6 @@ public class TaskTwo {
         // Get the number of the iterations
         if(params.has("num_iters")){
             num_iters = Integer.parseInt(params.getRequired("num_iters"));
-            System.out.println("####################################################");
-            System.out.println("####################################################");
-            System.out.println("####################################################");
-            System.out.println("####################################################");
-            System.out.println("####################################################");
             System.out.println("The number of iterations is set as: " + num_iters);
             System.out.println("####################################################");
             System.out.println("####################################################");
@@ -210,7 +229,6 @@ public class TaskTwo {
                 measurementsHandled
                         .map(tuple -> {
                             Point measurement;
-                            // TODO: In default mode, final_order_map will have null pointer exception
                             int field_num_one = final_order_map.get(1);
                             int field_num_two = final_order_map.get(2);
                             int field_num_three = final_order_map.get(3);
@@ -237,32 +255,23 @@ public class TaskTwo {
                 .and(MIN, 4)
                 .and(MAX, 5);
 
-        DataSet<Tuple12<Integer, Double, Double, Double, Integer, Double, Double, Double, Integer, Double, Double, Double>> centro_num_array = measurements_points_aggregation.map(new MapGeNumArray());
-        DataSet<Centroid> centroids_random_with_id = centro_num_array.flatMap((tuple,out) -> {
-            Integer id_1 = tuple.f0;
-            Double x_1 = tuple.f1;
-            Double y_1 = tuple.f2;
-            Double z_1 = tuple.f3;
-            Centroid central_1 = new Centroid(id_1, x_1, y_1, z_1);
-            out.collect(central_1);
-            Integer id_2 = tuple.f4;
-            Double x_2 = tuple.f5;
-            Double y_2 = tuple.f6;
-            Double z_2 = tuple.f7;
-            Centroid central_2 = new Centroid(id_2, x_2, y_2, z_2);
-            out.collect(central_2);
-            Integer id_3 = tuple.f8;
-            Double x_3 = tuple.f9;
-            Double y_3 = tuple.f10;
-            Double z_3 = tuple.f11;
-            Centroid central_3 = new Centroid(id_3, x_3, y_3, z_3);
-            out.collect(central_3);
-        });
-
-//        Centroid centroid_a = new Centroid(1, 0.5, 0.5, 0.5);
-//        Centroid centroid_b = new Centroid(2, 1.5, 1.5, 1.5);
-//        Centroid centroid_c = new Centroid(3, 2.5, 2.5, 2.5);
-//        DataSet<Centroid> centroids_default = env.fromElements(centroid_a, centroid_b, centroid_c);
+        DataSet<Centroid> centroids_random_with_id = measurements_points_aggregation
+                .flatMap((tuple,out) -> {
+                    for(int centro_num =1; centro_num<=k_num; centro_num++){
+                        Integer id = centro_num;
+                        Double x_min = tuple.f0;
+                        Double x_max = tuple.f1;
+                        Double y_min = tuple.f2;
+                        Double y_max = tuple.f3;
+                        Double z_min = tuple.f4;
+                        Double z_max = tuple.f5;
+                        Double x = ThreadLocalRandom.current().nextDouble(x_min, x_max);
+                        Double y = ThreadLocalRandom.current().nextDouble(y_min, y_max);
+                        Double z = ThreadLocalRandom.current().nextDouble(z_min, z_max);
+                        Centroid centro = new Centroid(id, x, y, z);
+                        out.collect(centro);
+                    }
+                });
 
         IterativeDataSet<Centroid> loop = centroids_random_with_id.iterate(num_iters);
 
