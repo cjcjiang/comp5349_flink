@@ -77,7 +77,10 @@ public class TaskThree {
         }
 
         // Get the default three dimensions
+        // The default dimension is Ly6C,CD11b,SCA1
+        // So the order the the input field string should be SCA1,CD11b,Ly6C
         // SCA1,CD11b,Ly6C -> 00110001000000
+        // Add the three headers' input string, sample,FSC-A,SSC-A
         // final -> 11100110001000000
         ArrayList<String> default_dimensions = new ArrayList<>();
         ArrayList<String> dimensions = new ArrayList<>();
@@ -161,10 +164,10 @@ public class TaskThree {
                 input_field_string = "111" + input_field_string_default;
 
                 // Have the default order
-                for(int i =1; i<=3; i++){
-                    int field_num = i + 2;
-                    final_order_map.put(i, field_num);
-                }
+                // Ly6C,CD11b,SCA1
+                final_order_map.put(1, 5);
+                final_order_map.put(2, 4);
+                final_order_map.put(3, 3);
 
                 System.err.println("User did not define the dimension names, the result will be wrong");
                 System.out.println("####################################################");
@@ -177,10 +180,10 @@ public class TaskThree {
             input_field_string = "111" + input_field_string_default;
 
             // Have the default order
-            for(int i =1; i<=3; i++){
-                int field_num = i + 2;
-                final_order_map.put(i, field_num);
-            }
+            // Ly6C,CD11b,SCA1
+            final_order_map.put(1, 5);
+            final_order_map.put(2, 4);
+            final_order_map.put(3, 3);
 
             System.err.println("User did not define the dimension names, the result will be wrong");
             System.out.println("####################################################");
@@ -220,7 +223,7 @@ public class TaskThree {
                             }});
 
         // Pick up the useful information out of the measurements
-        // (SCA1, CD11b, Ly6C) as (x,y,z)
+        // Ly6C,CD11b,SCA1 as x,y,z
         DataSet<Point> measurementsPoint =
                 measurementsHandled
                         .map(tuple -> {
