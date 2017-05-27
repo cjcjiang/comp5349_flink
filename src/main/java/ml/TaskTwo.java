@@ -119,6 +119,20 @@ public class TaskTwo {
                     }
                 }
                 input_field_string = "111" + input_field_string;
+
+                // Have the field number for each header with the actual order
+                for(int i=0; i<dimension_actual_order.size();i++){
+                    String header = dimension_actual_order.get(i);
+                    dimension_order_actual_map.put(header, i+3);
+                }
+
+                // Link the actual order to the user define order
+                for(int i =1; i<=dimension_order_user_map.size(); i++){
+                    String header = dimension_order_user_map.get(i);
+                    int field_num = dimension_order_actual_map.get(header);
+                    final_order_map.put(i, field_num);
+                }
+
                 System.out.println("The input_field_string is: " + input_field_string);
                 System.out.println("####################################################");
                 System.out.println("####################################################");
@@ -127,6 +141,13 @@ public class TaskTwo {
                 System.out.println("####################################################");
             }else{
                 input_field_string = "111" + input_field_string_default;
+
+                // Have the default order
+                for(int i =1; i<=3; i++){
+                    int field_num = i + 2;
+                    final_order_map.put(i, field_num);
+                }
+
                 System.err.println("The number of dimensions is not three, default dimensions are used");
                 System.out.println("####################################################");
                 System.out.println("####################################################");
@@ -136,6 +157,13 @@ public class TaskTwo {
             }
         }else{
             input_field_string = "111" + input_field_string_default;
+
+            // Have the default order
+            for(int i =1; i<=3; i++){
+                int field_num = i + 2;
+                final_order_map.put(i, field_num);
+            }
+
             System.err.println("The user did not give the three dimensions, default dimensions are used");
             System.out.println("####################################################");
             System.out.println("####################################################");
@@ -144,18 +172,7 @@ public class TaskTwo {
             System.out.println("####################################################");
         }
 
-        // Have the field number for each header with the actual order
-        for(int i=0; i<dimension_actual_order.size();i++){
-            String header = dimension_actual_order.get(i);
-            dimension_order_actual_map.put(header, i+3);
-        }
 
-        // Link the actual order to the user define order
-        for(int i =1; i<=dimension_order_user_map.size(); i++){
-            String header = dimension_order_user_map.get(i);
-            int field_num = dimension_order_actual_map.get(header);
-            final_order_map.put(i, field_num);
-        }
 
 
         // Which directory are we receiving input from?
