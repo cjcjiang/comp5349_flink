@@ -50,8 +50,6 @@ public class TaskTwo {
             System.out.println("####################################################");
         }
 
-        // TODO: Have k clusters
-
         int num_iters = 0;
         // Get the number of the iterations
         if(params.has("num_iters")){
