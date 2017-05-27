@@ -5,10 +5,7 @@ import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.api.java.utils.ParameterTool;
 
 import java.util.*;
@@ -22,7 +19,7 @@ public class TaskThree {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         final int default_num_iters = 10;
         final String measurement_header= "CD48,Ly6G,CD117,SCA1,CD11b,CD150,CD11c,B220,Ly6C,CD115,CD135,CD3/CD19/NK11,CD16/CD32,CD45";
-        final Integer k_num;
+        final Long k_num;
         final String default_task_two_result_dir = "hdfs:////user/yjia4072/task_two_result";
         String task_two_result_dir = "";
 
@@ -248,30 +245,29 @@ public class TaskThree {
                     out.collect(temp);
                 });
 
+        // Get the number of central points, also the number for k
+        k_num = centroids_task_two.count();
+
         // Attach the cluster id and distance to each point
-        DataSet<Tuple3<Integer, Point, Double>> clusteredPoints = measurementsPoint
+        DataSet<Tuple4<Integer, Long, Point, Double>> clusteredPoints = measurementsPoint
                 // assign points to task two clusters
                 .map(new ClusterPoints())
                 .withBroadcastSet(centroids_task_two, "centroids_task_two");
 
-        // Divide all points into each clusters
+
         DataSet<Point> points_no_noise =  clusteredPoints
                 .groupBy(0)
+                .sortGroup(3, Order.ASCENDING)
                 .reduceGroup((tuples, out) -> {
-                    ArrayList<PointDistanceCompare> id_point_distance_arraylist = new ArrayList<>();
-                    for(Tuple3<Integer, Point, Double> tuple:tuples){
-                        PointDistanceCompare id_point_distance = new PointDistanceCompare(tuple.f0, tuple.f1, tuple.f2);
-                        id_point_distance_arraylist.add(id_point_distance);
-                    }
-                    // Sort the list from small to big with distance
-                    Collections.sort(id_point_distance_arraylist);
-                    Double point_del_num_double = id_point_distance_arraylist.size() * 0.1;
-                    int point_del_num = point_del_num_double.intValue();
-                    int point_total_num = id_point_distance_arraylist.size();
-                    // Remove the biggest part
-                    List<PointDistanceCompare> id_point_distance_arraylist_without_noise = id_point_distance_arraylist.subList(0, (point_total_num-point_del_num));
-                    for(PointDistanceCompare temp : id_point_distance_arraylist_without_noise){
-                        out.collect(temp.point);
+                    Long i = 0L;
+                    for(Tuple4<Integer, Long, Point, Double> tuple : tuples){
+                        Long cluster_total_num = tuple.f1;
+                        Double cluster_keep_num_double = cluster_total_num * 0.9;
+                        Long cluster_keep_num = cluster_keep_num_double.longValue();
+                        if(i<cluster_keep_num){
+                            out.collect(tuple.f2);
+                        }
+                        i++;
                     }
                 });
 
