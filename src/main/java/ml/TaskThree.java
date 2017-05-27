@@ -1,15 +1,17 @@
 package ml;
 
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.api.java.utils.ParameterTool;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by JIANG on 2017/5/25.
@@ -221,10 +223,77 @@ public class TaskThree {
         DataSet<Tuple3<Integer, Point, Double>> clusteredPoints = measurementsPoint
                 // assign points to task two clusters
                 .map(new ClusterPoints())
-                .withBroadcastSet(centroids_task_two, "newest_centroids");
+                .withBroadcastSet(centroids_task_two, "centroids_task_two");
 
         // Divide all points into each clusters
+        DataSet<Point> points_no_noise =  clusteredPoints
+                .groupBy(0)
+                .reduceGroup((tuples, out) -> {
+                    ArrayList<PointDistanceCompare> id_point_distance_arraylist = new ArrayList<>();
+                    for(Tuple3<Integer, Point, Double> tuple:tuples){
+                        PointDistanceCompare id_point_distance = new PointDistanceCompare(tuple.f0, tuple.f1, tuple.f2);
+                        id_point_distance_arraylist.add(id_point_distance);
+                    }
+                    // Sort the list from small to big with distance
+                    Collections.sort(id_point_distance_arraylist);
+                    Double point_del_num_double = id_point_distance_arraylist.size() * 0.1;
+                    int point_del_num = point_del_num_double.intValue();
+                    int point_total_num = id_point_distance_arraylist.size();
+                    // Remove the biggest part
+                    List<PointDistanceCompare> id_point_distance_arraylist_without_noise = id_point_distance_arraylist.subList(0, (point_total_num-point_del_num));
+                    for(PointDistanceCompare temp : id_point_distance_arraylist_without_noise){
+                        out.collect(temp.point);
+                    }
+                });
 
+        IterativeDataSet<Centroid> loop = centroids_task_two.iterate(num_iters);
 
+        DataSet<Centroid> intermediate_centroids = points_no_noise
+                // compute the closest centroid for each point
+                .map(new SelectNearestCenter())
+                .withBroadcastSet(loop, "newest_centroids")
+                // count and sum point coordinates for each centroid
+                .map(tuple -> new Tuple3<Integer, Point, Long>(tuple.f0, tuple.f1, 1L))
+                .groupBy(0)
+                .reduce(new ReduceFunction<Tuple3<Integer, Point, Long>>(){
+                    @Override
+                    public Tuple3<Integer, Point, Long> reduce(Tuple3<Integer, Point, Long> val1, Tuple3<Integer, Point, Long> val2) {
+                        return new Tuple3<>(val1.f0, val1.f1.add(val2.f1), val1.f2 + val2.f2);
+                    }
+                })
+                // compute new centroids from point counts and coordinate sums
+                .map(tuple -> {
+                    Centroid centroid_temp = new Centroid(tuple.f0, tuple.f1.div(tuple.f2), tuple.f2);
+                    return centroid_temp;
+                });
+
+        // Feed new centroids back into next iteration
+        DataSet<Centroid> final_centroids = loop.closeWith(intermediate_centroids);
+
+        // Generate the Dataset to have the output
+        DataSet<Tuple5<Integer, Long, Double, Double, Double>> output_data = final_centroids
+                .map(centroid -> new Tuple5<>(centroid.id, centroid.num_of_points, centroid.x, centroid.y, centroid.z))
+                .sortPartition(0, Order.ASCENDING).setParallelism(1);
+
+        // End the program by writing the output!
+        if(params.has("output")) {
+            output_data.writeAsCsv(params.get("output"), "\n","\t" );
+            env.execute();
+        } else {
+            // Always limit direct printing
+            // as it requires pooling all resources into the driver.
+            System.err.println("No output location specified; printing first 100.");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            output_data.first(100).print();
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+        }
     }
 }
