@@ -16,7 +16,7 @@ public class ClusterPoints extends RichMapFunction<Point, Tuple3<Integer, Point,
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        this.centroids = getRuntimeContext().getBroadcastVariable("newest_centroids");
+        this.centroids = getRuntimeContext().getBroadcastVariable("centroids_task_two");
     }
 
     @Override

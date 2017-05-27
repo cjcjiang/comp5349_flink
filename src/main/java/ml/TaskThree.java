@@ -23,7 +23,36 @@ public class TaskThree {
         final int default_num_iters = 10;
         final String measurement_header= "CD48,Ly6G,CD117,SCA1,CD11b,CD150,CD11c,B220,Ly6C,CD115,CD135,CD3/CD19/NK11,CD16/CD32,CD45";
         final Integer k_num;
-        final String task_two_result_dir = "hdfs:////user/yjia4072/task_two_result";
+        final String default_task_two_result_dir = "hdfs:////user/yjia4072/task_two_result";
+        String task_two_result_dir = "";
+
+        if(params.has("t2_out")){
+            task_two_result_dir = params.getRequired("t2_out");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("The directory of task two output is set as: " + task_two_result_dir);
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+        }else{
+            task_two_result_dir = default_task_two_result_dir;
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("No t2_out is found, the directory of task two output is set as default: " + task_two_result_dir);
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+        }
 
         int num_iters = 0;
         // Get the number of the iterations
