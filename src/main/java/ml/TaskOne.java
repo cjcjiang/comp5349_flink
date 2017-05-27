@@ -1,4 +1,5 @@
 package ml;
+import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -8,6 +9,7 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 
+import java.util.ArrayList;
 public class TaskOne {
     public static void main(String[] args) throws Exception {
     final ParameterTool params = ParameterTool.fromArgs(args);
@@ -76,11 +78,11 @@ public class TaskOne {
 				}
 		      out.collect(new Tuple2<String, Integer>(name, count));
 			});
-			
-		DataSet<Tuple2<String, Integer>> finalResult_re = finalResult
+
+		DataSet<Tuple2<String, Integer>> partitionedData = finalResult.partitionCustom(new CustomPartitioner(), 1);
+		DataSet<Tuple2<String, Integer>> finalResult_re = partitionedData
 		    //.partitionByRange(1)
-			.sortPartition(1, Order.DESCENDING)
-			.setParallelism(1);
+			.sortPartition(1, Order.DESCENDING);
 
 /**	DataSet<Tuple2<String, Integer>> sortedFinalResult = 
 	    finalResult 
@@ -103,5 +105,6 @@ public class TaskOne {
 				finalResult_re.print();
 			}
 	}	
-	
+
 }
+
