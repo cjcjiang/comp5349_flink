@@ -14,6 +14,7 @@ public class TaskOne {
     public static void main(String[] args) throws Exception {
     final ParameterTool params = ParameterTool.fromArgs(args);
     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+	final String experiments_dir = "hdfs:////share/cytometry/experiments.csv";
 	Configuration parameters = new Configuration();
     //parameters.setBoolean("recursive.file.enumeration", true);
 
@@ -25,7 +26,7 @@ public class TaskOne {
 		}
 
     DataSet<Tuple2<String, String>> experiments = 
-		env.readCsvFile(measurementsDir + "experiments.csv")
+		env.readCsvFile(experiments_dir)
 			.includeFields("10000001")
 			.types(String.class, String.class);
 	DataSet<Tuple3<String, Integer, Integer>> data = 
