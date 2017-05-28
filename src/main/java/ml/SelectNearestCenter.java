@@ -15,6 +15,7 @@ public class SelectNearestCenter extends RichMapFunction<Point, Tuple2<Integer, 
 
     @Override
     public void open(Configuration parameters) throws Exception {
+        // Get the broadcast variable: centroids, with the name "newest_centroids"
         this.centroids = getRuntimeContext().getBroadcastVariable("newest_centroids");
     }
 
@@ -22,12 +23,12 @@ public class SelectNearestCenter extends RichMapFunction<Point, Tuple2<Integer, 
     public Tuple2<Integer, Point> map(Point p) throws Exception {
         double minDistance = Double.MAX_VALUE;
         int closestCentroidId = -1;
-        // check all cluster centers
+        // Check all cluster centers
         for (Centroid centroid : centroids) {
-            // compute distance
+            // Compute distance
             double distance = p.calculate_euclidean_distance(centroid);
 
-            // update nearest cluster if necessary
+            // Update nearest cluster if necessary
             if (distance < minDistance) {
                 minDistance = distance;
                 closestCentroidId = centroid.id;

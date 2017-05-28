@@ -7,12 +7,12 @@ public class CustomPartitioner implements Partitioner<Integer> {
     @Override
     public int partition(Integer key, int numPartitions) {
         if(key<=1000000){
-            return 0;
+            return 2;
         }else if((key>1000000) && (key<=1500000)){
             return 1;
         }
         else{
-            return 2;
+            return 0;
         }
     }
 }
