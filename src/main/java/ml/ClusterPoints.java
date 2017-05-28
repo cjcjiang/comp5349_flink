@@ -4,6 +4,7 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.configuration.Configuration;
 
 import java.util.Collection;
@@ -11,18 +12,19 @@ import java.util.Collection;
 /**
  * Created by JIANG on 2017/5/25.
  */
-public class ClusterPoints extends RichMapFunction<Point, Tuple3<Integer, Point, Double>>{
+public class ClusterPoints extends RichMapFunction<Point, Tuple4<Integer, Long, Point, Double>>{
     private Collection<Centroid> centroids;
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        this.centroids = getRuntimeContext().getBroadcastVariable("newest_centroids");
+        this.centroids = getRuntimeContext().getBroadcastVariable("centroids_task_two");
     }
 
     @Override
-    public Tuple3<Integer, Point, Double> map(Point p) throws Exception {
+    public Tuple4<Integer, Long, Point, Double> map(Point p) throws Exception {
         double minDistance = Double.MAX_VALUE;
         int closestCentroidId = -1;
+        Long num_of_points = 0L;
         // check all cluster centers
         for (Centroid centroid : centroids) {
             // compute distance
@@ -32,9 +34,10 @@ public class ClusterPoints extends RichMapFunction<Point, Tuple3<Integer, Point,
             if (distance < minDistance) {
                 minDistance = distance;
                 closestCentroidId = centroid.id;
+                num_of_points= centroid.num_of_points;
             }
         }
-        Tuple3<Integer, Point, Double> temp = new Tuple3<>(closestCentroidId, p, minDistance);
+        Tuple4<Integer, Long, Point, Double> temp = new Tuple4<>(closestCentroidId, num_of_points, p, minDistance);
         return temp;
     }
 }

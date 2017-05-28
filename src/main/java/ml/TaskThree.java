@@ -5,10 +5,7 @@ import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.operators.IterativeDataSet;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple5;
-import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.api.java.utils.ParameterTool;
 
 import java.util.*;
@@ -22,8 +19,37 @@ public class TaskThree {
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         final int default_num_iters = 10;
         final String measurement_header= "CD48,Ly6G,CD117,SCA1,CD11b,CD150,CD11c,B220,Ly6C,CD115,CD135,CD3/CD19/NK11,CD16/CD32,CD45";
-        final Integer k_num;
-        final String task_two_result_dir = "hdfs:////user/yjia4072/task_two_result";
+        final Long k_num;
+        final String default_task_two_result_dir = "hdfs:////user/yjia4072/task_two_result";
+        String task_two_result_dir = "";
+
+        if(params.has("t2_out")){
+            task_two_result_dir = params.getRequired("t2_out");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("The directory of task two output is set as: " + task_two_result_dir);
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+        }else{
+            task_two_result_dir = default_task_two_result_dir;
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("No t2_out is found, the directory of task two output is set as default: " + task_two_result_dir);
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+            System.out.println("####################################################");
+        }
 
         int num_iters = 0;
         // Get the number of the iterations
@@ -51,7 +77,10 @@ public class TaskThree {
         }
 
         // Get the default three dimensions
+        // The default dimension is Ly6C,CD11b,SCA1
+        // So the order the the input field string should be SCA1,CD11b,Ly6C
         // SCA1,CD11b,Ly6C -> 00110001000000
+        // Add the three headers' input string, sample,FSC-A,SSC-A
         // final -> 11100110001000000
         ArrayList<String> default_dimensions = new ArrayList<>();
         ArrayList<String> dimensions = new ArrayList<>();
@@ -135,10 +164,10 @@ public class TaskThree {
                 input_field_string = "111" + input_field_string_default;
 
                 // Have the default order
-                for(int i =1; i<=3; i++){
-                    int field_num = i + 2;
-                    final_order_map.put(i, field_num);
-                }
+                // Ly6C,CD11b,SCA1
+                final_order_map.put(1, 5);
+                final_order_map.put(2, 4);
+                final_order_map.put(3, 3);
 
                 System.err.println("User did not define the dimension names, the result will be wrong");
                 System.out.println("####################################################");
@@ -151,10 +180,10 @@ public class TaskThree {
             input_field_string = "111" + input_field_string_default;
 
             // Have the default order
-            for(int i =1; i<=3; i++){
-                int field_num = i + 2;
-                final_order_map.put(i, field_num);
-            }
+            // Ly6C,CD11b,SCA1
+            final_order_map.put(1, 5);
+            final_order_map.put(2, 4);
+            final_order_map.put(3, 3);
 
             System.err.println("User did not define the dimension names, the result will be wrong");
             System.out.println("####################################################");
@@ -194,7 +223,7 @@ public class TaskThree {
                             }});
 
         // Pick up the useful information out of the measurements
-        // (SCA1, CD11b, Ly6C) as (x,y,z)
+        // Ly6C,CD11b,SCA1 as x,y,z
         DataSet<Point> measurementsPoint =
                 measurementsHandled
                         .map(tuple -> {
@@ -219,30 +248,29 @@ public class TaskThree {
                     out.collect(temp);
                 });
 
+        // Get the number of central points, also the number for k
+        k_num = centroids_task_two.count();
+
         // Attach the cluster id and distance to each point
-        DataSet<Tuple3<Integer, Point, Double>> clusteredPoints = measurementsPoint
+        DataSet<Tuple4<Integer, Long, Point, Double>> clusteredPoints = measurementsPoint
                 // assign points to task two clusters
                 .map(new ClusterPoints())
                 .withBroadcastSet(centroids_task_two, "centroids_task_two");
 
-        // Divide all points into each clusters
+
         DataSet<Point> points_no_noise =  clusteredPoints
                 .groupBy(0)
+                .sortGroup(3, Order.ASCENDING)
                 .reduceGroup((tuples, out) -> {
-                    ArrayList<PointDistanceCompare> id_point_distance_arraylist = new ArrayList<>();
-                    for(Tuple3<Integer, Point, Double> tuple:tuples){
-                        PointDistanceCompare id_point_distance = new PointDistanceCompare(tuple.f0, tuple.f1, tuple.f2);
-                        id_point_distance_arraylist.add(id_point_distance);
-                    }
-                    // Sort the list from small to big with distance
-                    Collections.sort(id_point_distance_arraylist);
-                    Double point_del_num_double = id_point_distance_arraylist.size() * 0.1;
-                    int point_del_num = point_del_num_double.intValue();
-                    int point_total_num = id_point_distance_arraylist.size();
-                    // Remove the biggest part
-                    List<PointDistanceCompare> id_point_distance_arraylist_without_noise = id_point_distance_arraylist.subList(0, (point_total_num-point_del_num));
-                    for(PointDistanceCompare temp : id_point_distance_arraylist_without_noise){
-                        out.collect(temp.point);
+                    Long i = 0L;
+                    for(Tuple4<Integer, Long, Point, Double> tuple : tuples){
+                        Long cluster_total_num = tuple.f1;
+                        Double cluster_keep_num_double = cluster_total_num * 0.9;
+                        Long cluster_keep_num = cluster_keep_num_double.longValue();
+                        if(i<cluster_keep_num){
+                            out.collect(tuple.f2);
+                        }
+                        i++;
                     }
                 });
 
