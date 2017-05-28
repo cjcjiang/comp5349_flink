@@ -16,18 +16,20 @@ public class TaskOne {
     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 	Configuration parameters = new Configuration();
     //parameters.setBoolean("recursive.file.enumeration", true);
-	
-	String dataDir = params.getRequired("dataDir");
-	        if(dataDir.charAt(dataDir.length() - 1) != '/') {
-            dataDir = dataDir + '/';
-        }
-		
+
+		// Which directory are we receiving input from?
+		// This can be local or on HDFS; just format the path correctly for your OS.
+		String measurementsDir = params.getRequired("measurements-dir");
+		if(measurementsDir.charAt(measurementsDir.length() - 1) != '/') {
+			measurementsDir = measurementsDir + '/';
+		}
+
     DataSet<Tuple2<String, String>> experiments = 
-		env.readCsvFile(dataDir + "experiments.csv")
+		env.readCsvFile(measurementsDir + "experiments.csv")
 			.includeFields("10000001")
 			.types(String.class, String.class);
 	DataSet<Tuple3<String, Integer, Integer>> data = 
-		env.readCsvFile(dataDir + "large")
+		env.readCsvFile(measurementsDir)
 		    .ignoreFirstLine()
 			.includeFields("11100000000000000")
 			.types(String.class, Integer.class, Integer.class)
