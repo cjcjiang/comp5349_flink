@@ -26,13 +26,10 @@ public class TaskOne {
 		}
 
     DataSet<Tuple2<String, String>> experiments = 
-<<<<<<< HEAD
-		env.readCsvFile(measurementsDir + "experiments.csv")
-=======
 		env.readCsvFile(experiments_dir)
->>>>>>> aeaee9c0e0dce312a847114e785bc323708c52d9
 			.includeFields("10000001")
 			.types(String.class, String.class);
+			
 	DataSet<Tuple3<String, Integer, Integer>> data = 
 		env.readCsvFile(measurementsDir)
 		    .ignoreFirstLine()
