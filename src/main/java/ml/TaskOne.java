@@ -24,12 +24,12 @@ public class TaskOne {
 		if(measurementsDir.charAt(measurementsDir.length() - 1) != '/') {
 			measurementsDir = measurementsDir + '/';
 		}
-
+    // format <sample, researcher>
     DataSet<Tuple2<String, String>> experiments = 
 		env.readCsvFile(experiments_dir)
 			.includeFields("10000001")
 			.types(String.class, String.class);
-			
+	// format <sample, FSC-A, SSC-A>
 	DataSet<Tuple3<String, Integer, Integer>> data = 
 		env.readCsvFile(measurementsDir)
 		    .ignoreFirstLine()
@@ -52,10 +52,12 @@ public class TaskOne {
 			.projectFirst(0,1)
 			.projectSecond(1,2);
 	
+	// format <"name 1; name 2">
 	DataSet<String> researcher = 
 		joinResults
 			.map(tuple -> tuple.f1);
 			
+	// format <Researcher, 1>		
 	DataSet<Tuple2<String, Integer>> countResearcher= 
 		researcher.flatMap((line,out)->{
 			String names[]= line.split("; ");
@@ -68,14 +70,15 @@ public class TaskOne {
 				}
 			}			
 		});
-	
+		
+	// format <Researcher, numOfMeasurements>
 	DataSet<Tuple2<String, Integer>> finalResult =
 		countResearcher
 			.groupBy(0)
 			.reduceGroup((tuples, out) -> {
 				String name = "";
 				int count = 0;
-				
+				// do the count
 				for(Tuple2<String, Integer> tuple : tuples){
 					name = tuple.f0;
 					count+=1;
@@ -85,26 +88,16 @@ public class TaskOne {
 
 		DataSet<Tuple2<String, Integer>> partitionedData = finalResult.partitionCustom(new CustomPartitioner(), 1);
 		DataSet<Tuple2<String, Integer>> finalResult_re = partitionedData
-		    //.partitionByRange(1)
 			.sortPartition(1, Order.DESCENDING);
 
-/**	DataSet<Tuple2<String, Integer>> sortedFinalResult = 
-	    finalResult 
-		    .groupBy(0)
-			.sortGroup(1, Order.DESCENDING)
-			.reduceGroup((tuples, out) -> {
-			out.collect(new Tuple2<String, Integer>(tuple.f0, tuple.f1));
-			});
-**/	
 			// End the program by writing the output!
 			if(params.has("output")) {
 			    finalResult_re.writeAsCsv(params.get("output"),"\n","\t");
 					env.execute();
 			} 
 			else {
-				// Always limit direct printing
-				// as it requires pooling all resources into the driver.
 				System.err.println("No output location specified; printing first 100.");
+				// limit direct printing
 				finalResult_re.first(100).print();
 				finalResult_re.print();
 			}
